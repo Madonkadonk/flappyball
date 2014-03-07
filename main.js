@@ -1,7 +1,7 @@
 function start(container){
     Physijs.scripts.worker = 'physijs_worker.js';
     Physijs.scripts.ammo = 'ammo.js';
-    var container, scene, renderer, camera, light, ball, plane, box, geoBall, geoMat;
+    var container, scene, renderer, camera, light, ball, plane, box, geoBall = {}, geoMat = {}, default_ball = 'orni', goingUp = false, rotationAngle = 0;
     var WIDTH, HEIGHT, VIEW_ANGLE, ASPECT, NEAR, FAR;
     var camera_ball_radius_x;
     var camera_ball_radius_z;
@@ -122,18 +122,24 @@ function start(container){
 
         scene.add(plane2);
 
-        ball = new Physijs.BoxMesh(
-           geoBall,
+        ball = new Physijs.CylinderMesh(
+           geoBall[default_ball],
             Physijs.createMaterial(
-               geoMat,
+               geoMat[default_ball],
                 .4,
                 .6
             ),
             0
         );
-        ball.scale.set(0.05, 0.05, 0.05);
+        if(default_ball == 'orni')
+            ball.scale.set(0.05, 0.05, 0.05);
         ball.position.y = 40;
         ball.position.z = 50;
+        if(default_ball == 'enter'){
+            ball.scale.set(0.8, 0.8, 0.8);
+            ball.rotation.y = Math.PI/2;
+            ball.rotation.order = "ZYX";
+        }
         ball.castShadow = true;
         ball.receiveShadow = true;
 
@@ -144,8 +150,17 @@ function start(container){
         var box_interval = -1;
         function ball_move(){
             ball.setLinearVelocity({x: ball.getLinearVelocity().x, y: 30, z: ball.getLinearVelocity().z});
-            ball.setAngularVelocity({x: 0, y: 80, z: 0});
-            spinVelocity = 70;
+            if(default_ball == 'orni'){
+                ball.setAngularVelocity({x: 0, y: 80, z: 0});
+                spinVelocity = 70;
+            }
+            if(default_ball == 'enter'){
+                goingUp = true;
+                console.log(ball);
+                rotationAngle += -Math.PI/36;
+                ball.rotation.x = rotationAngle;
+                ball.__dirtyRotation = true;
+            }
         }
         box = new Physijs.CylinderMesh(
             new THREE.CylinderGeometry(3, 3, 40, 20, 20),
@@ -191,7 +206,7 @@ function start(container){
 
             container[0].addEventListener('mousedown', ball_move, false);
         }
-        gameBegin = $('<div>Start Game</div>');
+        gameBegin = $('<div class="popup">Start Game <br />Press V to change vehicle</div>');
         gameBegin.css({
             position: 'absolute',
             background: 'green',
@@ -215,74 +230,128 @@ function start(container){
         counter.text(scoreCount);
         container.append(counter);
         var lastPillar ={position: {x: 0}}
+        function collision() {
+            renderGame = false;
+            clearInterval(box_interval);
+            gameEnd = $('<div class="popup">Game Over<br />Click Me To Restart</div>');
+            gameEnd.css({
+                position: 'absolute',
+                background: 'red',
+                color: 'white',
+                padding: '5px',
+                left: WIDTH/2 - gameEnd.width()/2,
+                top: HEIGHT/4 - gameEnd.height() * 8
+            });
+            container.append(gameEnd);
+            ball.removeEventListener('collision', collision);
+            //container[0].removeEventListener('mousedown', ball_move);
+            gameEnd.on('click.end', function(){
+                lastPillar ={position: {x: 0}}
+                for(b in box_array){
+                    scene.remove(box_array[b]);
+                }
+                box_array = [];
+                scene.remove(ball);
+                ball = new Physijs.CylinderMesh(
+                geoBall[default_ball],
+                    Physijs.createMaterial(
+                    geoMat[default_ball],
+                        .4,
+                        .6
+                    ),
+                    1
+                );
+                if(default_ball == 'orni')
+                    ball.scale.set(0.05, 0.05, 0.05);
+                ball.position.y = 40;
+                ball.position.z = 50;
+                if(default_ball == 'enter'){
+                    ball.scale.set(0.8, 0.8, 0.8);
+                    ball.rotation.y = Math.PI/2;
+                    ball.rotation.order = "ZYX";
+                }
+                ball.castShadow = true;
+                ball.receiveShadow = true;
+                scene.add(ball);
+                ball.addEventListener('collision', collision, false);
+                container.off('click.end');
+                gameEnd.remove();
+                renderGame = true;
+                scoreCount = 0;
+                counter.text(scoreCount);
+                startGame();
+            });
+        }
         container.on('click.begin', function(){
             scene.remove(ball);
-            ball = new Physijs.BoxMesh(
-            geoBall,
+            ball = new Physijs.CylinderMesh(
+            geoBall[default_ball],
                 Physijs.createMaterial(
-                geoMat,
+                geoMat[default_ball],
                     .4,
                     .6
                 ),
                 1
             );
-            ball.scale.set(0.05, 0.05, 0.05);
+            if(default_ball == 'orni')
+                ball.scale.set(0.05, 0.05, 0.05);
             ball.position.y = 40;
             ball.position.z = 50;
+            if(default_ball == 'enter'){
+                ball.scale.set(0.8, 0.8, 0.8);
+                ball.rotation.y = Math.PI/2;
+                ball.rotation.order = "ZYX";
+            }
             ball.castShadow = true;
             ball.receiveShadow = true;
             container.off('click.begin');
             scene.add(ball);
-            function collision() {
-                renderGame = false;
-                clearInterval(box_interval);
-                gameEnd = $('<div>Game Over<br />Click Me To Restart</div>');
-                gameEnd.css({
-                    position: 'absolute',
-                    background: 'red',
-                    color: 'white',
-                    padding: '5px',
-                    left: WIDTH/2 - gameEnd.width()/2,
-                    top: HEIGHT/4 - gameEnd.height() * 8
-                });
-                container.append(gameEnd);
-                ball.removeEventListener('collision', collision);
-                //container[0].removeEventListener('mousedown', ball_move);
-                gameEnd.on('click.end', function(){
-                    lastPillar ={position: {x: 0}}
-                    for(b in box_array){
-                        scene.remove(box_array[b]);
-                    }
-                    box_array = [];
-                    scene.remove(ball);
-                    ball = new Physijs.BoxMesh(
-                    geoBall,
-                        Physijs.createMaterial(
-                        geoMat,
-                            .4,
-                            .6
-                        ),
-                        1
-                    );
-                    ball.scale.set(0.05, 0.05, 0.05);
-                    ball.position.y = 40;
-                    ball.position.z = 50;
-                    ball.castShadow = true;
-                    ball.receiveShadow = true;
-                    scene.add(ball);
-                    ball.addEventListener('collision', collision, false);
-                    container.off('click.end');
-                    gameEnd.remove();
-                    renderGame = true;
-                    scoreCount = 0;
-                    counter.text(scoreCount);
-                    startGame();
-                });
-            }
             ball.addEventListener('collision', collision, false);
             gameBegin.remove();
             renderGame = true;
             startGame();
+        });
+        container.on('keypress', function(e){
+            if(e.charCode == 118){
+                $('.popup').remove();
+                if(default_ball == 'orni')
+                    default_ball = 'enter';
+                else
+                    default_ball = 'orni';
+                lastPillar ={position: {x: 0}}
+                for(b in box_array){
+                    scene.remove(box_array[b]);
+                }
+                box_array = [];
+                scene.remove(ball);
+                ball = new Physijs.CylinderMesh(
+                geoBall[default_ball],
+                    Physijs.createMaterial(
+                    geoMat[default_ball],
+                        .4,
+                        .6
+                    ),
+                    1
+                );
+                if(default_ball == 'orni')
+                    ball.scale.set(0.05, 0.05, 0.05);
+                ball.position.y = 40;
+                ball.position.z = 50;
+                if(default_ball == 'enter'){
+                    ball.scale.set(0.8, 0.8, 0.8);
+                    ball.rotation.y = Math.PI/2;
+                    ball.rotation.order = "ZYX";
+                }
+                ball.castShadow = true;
+                ball.receiveShadow = true;
+                scene.add(ball);
+                ball.addEventListener('collision', collision, false);
+                container.off('click.end');
+                renderGame = true;
+                scoreCount = 0;
+                counter.text(scoreCount);
+                startGame();
+            }
         });
         
         renderer.setClearColor(0xffffff, 1);
@@ -383,15 +452,36 @@ function start(container){
                 }
             }
             try{
-                if(spinVelocity > 0) {
-                    spinVelocity *= 0.97;
-                    ball.setAngularVelocity({x: 0, y: spinVelocity , z: 0});
+                if(default_ball == 'orni'){
+                    if(spinVelocity > 0) {
+                        spinVelocity *= 0.97;
+                        ball.setAngularVelocity({x: 0, y: spinVelocity , z: 0});
+                    }
+                } else if (default_ball == 'enter') {
+                    if(goingUp){
+                        if(rotationAngle > -Math.PI/6){
+                            rotationAngle += -Math.PI/36;
+                            ball.rotation.x  = rotationAngle;
+                            ball.__dirtyRotation = true;
+                            //ball.rotateOnAxis(new THREE.Vector3(1, 0, 0), -Math.PI/4);
+                        } else {
+                            goingUp = false;
+                        }
+                    } else {
+                        if(rotationAngle < Math.PI/6){
+                            rotationAngle += Math.PI/72;
+                            //ball.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI/r);
+                            ball.rotation.x  = rotationAngle;
+                            ball.__dirtyRotation = true;
+                        }
+                    }
                 }
             } catch (e) {}
             var pos = (Math.PI/WIDTH*(mousepos)) - (Math.PI/2);
             camera.position.x = ball.position.x + (1.5 * camera_ball_radius_x) * Math.sin(pos);
             camera.position.z = ball.position.z + (1.5 * camera_ball_radius_z) * Math.cos(pos);
             camera.lookAt(ball.position);
+            skyBox.rotation.y += 0.0009;
 
             renderer.render(scene, camera);
             requestAnimationFrame(render);
@@ -403,9 +493,15 @@ function start(container){
     var manager = new THREE.LoadingManager();
     var loader = new THREE.JSONLoader( manager );
     loader.load('Ornithopter.js', function( object, obj_mat ){
-        geoBall = object;
-        geoMat = new THREE.MeshLambertMaterial({ color: 0xd6933d });
-        init();
+        geoBall.orni = object;
+        geoMat.orni = new THREE.MeshLambertMaterial({ color: 0xd6933d });
+        loader.load('USSEnterprise.js', function(object){
+            console.log(object, obj_mat);
+            geoBall.enter = object;
+            geoMat.enter = obj_mat[0];
+            //geoMat = new THREE.MeshLambertMaterial({ color: 0xd6933d });
+            init();
+        });
     });
 }
 
