@@ -1,7 +1,7 @@
 function start(container){
     Physijs.scripts.worker = 'physijs_worker.js';
     Physijs.scripts.ammo = 'ammo.js';
-    var container, scene, renderer, camera, light, ball, plane, box;
+    var container, scene, renderer, camera, light, ball, plane, box, geoBall, geoMat;
     var WIDTH, HEIGHT, VIEW_ANGLE, ASPECT, NEAR, FAR;
     var camera_ball_radius_x;
     var camera_ball_radius_z;
@@ -9,6 +9,7 @@ function start(container){
     var clock = new THREE.Clock();
     var box_array = [];
     var renderGame = false;
+    var spinVelocity = 0;
     box = {};
     init = function(){
 
@@ -59,17 +60,39 @@ function start(container){
 
         scene.add(light);
 
+        var textureMap = THREE.ImageUtils.loadTexture("grass.jpg")
+        textureMap.wrapS = textureMap.wrapT = THREE.RepeatWrapping;
+        textureMap.repeat.set(50, 50);
+
         plane = new Physijs.BoxMesh(
         new THREE.CubeGeometry(1000, 1000, 2, 10, 10),
         Physijs.createMaterial(
-            new THREE.MeshLambertMaterial({
-            color: 0xeeeeee
+            new THREE.MeshBasicMaterial({
+                map: textureMap
             }),
             .4,
             .8
         ),
         0
         );
+
+
+        var geometry = new THREE.SphereGeometry(3000, 60, 40);
+        var uniforms = {
+              texture: { type: 't', value: THREE.ImageUtils.loadTexture('skybox.jpg') }
+        };
+
+        var material = new THREE.ShaderMaterial( {
+              uniforms:       uniforms,
+                vertexShader:   document.getElementById('sky-vertex').textContent,
+                  fragmentShader: document.getElementById('sky-fragment').textContent
+        });
+
+        skyBox = new THREE.Mesh(geometry, material);
+        skyBox.scale.set(-1, 1, 1);
+        skyBox.eulerOrder = 'XZY';
+        skyBox.renderDepth = 1000.0;
+        scene.add(skyBox);
 
         plane.rotation.x = -Math.PI / 2;
         plane.rotation.y = -Math.PI ;
@@ -81,7 +104,7 @@ function start(container){
         new THREE.CubeGeometry(240, 10, 2, 10, 10),
         Physijs.createMaterial(
             new THREE.MeshLambertMaterial({
-            color: 'green'
+            color: 'lightgrey'
             }),
             .4,
             .8
@@ -99,22 +122,16 @@ function start(container){
 
         scene.add(plane2);
 
-        ball = new Physijs.SphereMesh(
-            new THREE.SphereGeometry(
-                0.5 * (4 - 1) + 1,
-                16,
-                16
-            ),
+        ball = new Physijs.BoxMesh(
+           geoBall,
             Physijs.createMaterial(
-                new THREE.MeshLambertMaterial({
-                    color: 0xff0000,
-                    reflectivity: .8
-                }),
+               geoMat,
                 .4,
                 .6
             ),
             0
         );
+        ball.scale.set(0.05, 0.05, 0.05);
         ball.position.y = 40;
         ball.position.z = 50;
         ball.castShadow = true;
@@ -126,13 +143,15 @@ function start(container){
         scene.add(ball);
         var box_interval = -1;
         function ball_move(){
-            ball.setLinearVelocity({x: 0, y: 30, z: 0});
+            ball.setLinearVelocity({x: ball.getLinearVelocity().x, y: 30, z: ball.getLinearVelocity().z});
+            ball.setAngularVelocity({x: 0, y: 80, z: 0});
+            spinVelocity = 70;
         }
-        box = new Physijs.BoxMesh(
-            new THREE.CubeGeometry(5, 40, 5),
+        box = new Physijs.CylinderMesh(
+            new THREE.CylinderGeometry(3, 3, 40, 20, 20),
             Physijs.createMaterial(
                 new THREE.MeshLambertMaterial({
-                color: 'green'
+                color: 'lightgrey'
             }),
             .4,
             .8
@@ -146,11 +165,11 @@ function start(container){
         box.receiveShadow = true;
         scene.add(box);
 
-        box2 = new Physijs.BoxMesh(
-            new THREE.CubeGeometry(5, 40, 5),
+        box2 = new Physijs.CylinderMesh(
+            new THREE.CylinderGeometry(3, 3, 40, 20, 20),
             Physijs.createMaterial(
                 new THREE.MeshLambertMaterial({
-                color: 'green'
+                color: 'lightgrey'
             }),
             .4,
             .8
@@ -165,53 +184,6 @@ function start(container){
         scene.add(box2);
         function startGame(){
             box_interval = setInterval(function(){
-                var box_bottom_size = Math.round((Math.random() * 10) + 05);
-                var box_top_size = 22 - box_bottom_size;
-                var gap = 28;
-
-
-                box_bottom = new Physijs.BoxMesh(
-                    new THREE.CubeGeometry(5, box_bottom_size, 5),
-                    Physijs.createMaterial(
-                        new THREE.MeshLambertMaterial({
-                            color: 'green'
-                        }),
-                        .4,
-                        .8
-                    ),
-                    0
-                );
-
-                box_bottom.position.y = box_bottom_size - 1;
-                box_bottom.position.x = 70;
-                box_bottom.position.z = 50;
-                box_bottom.castShadow = true;
-                box_bottom.receiveShadow = true;
-                box_bottom.is_count_box = true;
-                box_bottom.not_counted = true;
-                scene.add(box_bottom);
-
-                box_top = new Physijs.BoxMesh(
-                    new THREE.CubeGeometry(5, box_top_size, 5),
-                    Physijs.createMaterial(
-                        new THREE.MeshLambertMaterial({
-                            color: 'green'
-                        }),
-                        .4,
-                        .8
-                    ),
-                    0
-                );
-
-                box_top.position.y = 45 - box_top_size/2; //box_top_size + gap;
-                box_top.position.x = 70;
-                box_top.position.z = 50;
-                box_top.castShadow = true;
-                box_top.receiveShadow = true;
-                box_top.is_count_box = false;
-                scene.add(box_top);
-                box_array.push(box_bottom);
-                box_array.push(box_top);
             }, 1000);
                     
 
@@ -242,24 +214,19 @@ function start(container){
         });
         counter.text(scoreCount);
         container.append(counter);
+        var lastPillar ={position: {x: 0}}
         container.on('click.begin', function(){
             scene.remove(ball);
-            ball = new Physijs.SphereMesh(
-                new THREE.SphereGeometry(
-                    0.5 * (4 - 1) + 1,
-                    16,
-                    16
-                ),
+            ball = new Physijs.BoxMesh(
+            geoBall,
                 Physijs.createMaterial(
-                    new THREE.MeshLambertMaterial({
-                        color: 0xff0000,
-                        reflectivity: .8
-                    }),
+                geoMat,
                     .4,
                     .6
                 ),
                 1
             );
+            ball.scale.set(0.05, 0.05, 0.05);
             ball.position.y = 40;
             ball.position.z = 50;
             ball.castShadow = true;
@@ -269,40 +236,35 @@ function start(container){
             function collision() {
                 renderGame = false;
                 clearInterval(box_interval);
-                gameEnd = $('<div>Game Over</div>');
+                gameEnd = $('<div>Game Over<br />Click Me To Restart</div>');
                 gameEnd.css({
                     position: 'absolute',
                     background: 'red',
                     color: 'white',
                     padding: '5px',
-                    left: WIDTH/2 - gameBegin.width()/2,
-                    top: HEIGHT/2 - gameBegin.height()/2
+                    left: WIDTH/2 - gameEnd.width()/2,
+                    top: HEIGHT/4 - gameEnd.height() * 8
                 });
                 container.append(gameEnd);
                 ball.removeEventListener('collision', collision);
-                container[0].removeEventListener('mousedown', ball_move);
-                container.on('click.end', function(){
+                //container[0].removeEventListener('mousedown', ball_move);
+                gameEnd.on('click.end', function(){
+                    lastPillar ={position: {x: 0}}
                     for(b in box_array){
                         scene.remove(box_array[b]);
                     }
                     box_array = [];
                     scene.remove(ball);
-                    ball = new Physijs.SphereMesh(
-                        new THREE.SphereGeometry(
-                            0.5 * (4 - 1) + 1,
-                            16,
-                            16
-                        ),
+                    ball = new Physijs.BoxMesh(
+                    geoBall,
                         Physijs.createMaterial(
-                            new THREE.MeshLambertMaterial({
-                                color: 0xff0000,
-                                reflectivity: .8
-                            }),
+                        geoMat,
                             .4,
                             .6
                         ),
                         1
                     );
+                    ball.scale.set(0.05, 0.05, 0.05);
                     ball.position.y = 40;
                     ball.position.z = 50;
                     ball.castShadow = true;
@@ -333,6 +295,57 @@ function start(container){
 
         function render() {
             if (renderGame) {
+                var now = Date.now();
+                if(lastPillar.position.x < 35){ 
+                    var box_bottom_size = Math.round((Math.random() * 10) + 05);
+                    var box_top_size = 22 - box_bottom_size;
+                    var gap = 28;
+
+
+                    box_bottom = new Physijs.CylinderMesh(
+                        new THREE.CylinderGeometry(3, 3, box_bottom_size, 20, 20),
+                        Physijs.createMaterial(
+                            new THREE.MeshLambertMaterial({
+                                color: 'lightgrey'
+                            }),
+                            .4,
+                            .8
+                        ),
+                        0
+                    );
+
+                    box_bottom.position.y = box_bottom_size - 1;
+                    box_bottom.position.x = 70;
+                    box_bottom.position.z = 50;
+                    box_bottom.castShadow = true;
+                    box_bottom.receiveShadow = true;
+                    box_bottom.is_count_box = true;
+                    box_bottom.not_counted = true;
+                    scene.add(box_bottom);
+
+                    box_top = new Physijs.CylinderMesh(
+                        new THREE.CylinderGeometry(3, 3, box_top_size, 20, 20),
+                        Physijs.createMaterial(
+                            new THREE.MeshLambertMaterial({
+                                color: 'lightgrey'
+                            }),
+                            .4,
+                            .8
+                        ),
+                        0
+                    );
+
+                    box_top.position.y = 45 - box_top_size/2; //box_top_size + gap;
+                    box_top.position.x = 70;
+                    box_top.position.z = 50;
+                    box_top.castShadow = true;
+                    box_top.receiveShadow = true;
+                    box_top.is_count_box = false;
+                    scene.add(box_top);
+                    box_array.push(box_bottom);
+                    box_array.push(box_top);
+                    lastPillar = box_bottom;
+                }
                 for (var i = 5; i < scene.children.length - 5; i++) {
                     var obj = scene.children[i];
 
@@ -340,8 +353,8 @@ function start(container){
                         scene.remove(obj);
                     }
                 }
+                
 
-                var now = Date.now();
                 box.__dirtyPosition = true;
                 if( now - next > 10){
                     var remover = [];
@@ -369,7 +382,12 @@ function start(container){
                     next = now;
                 }
             }
-
+            try{
+                if(spinVelocity > 0) {
+                    spinVelocity *= 0.97;
+                    ball.setAngularVelocity({x: 0, y: spinVelocity , z: 0});
+                }
+            } catch (e) {}
             var pos = (Math.PI/WIDTH*(mousepos)) - (Math.PI/2);
             camera.position.x = ball.position.x + (1.5 * camera_ball_radius_x) * Math.sin(pos);
             camera.position.z = ball.position.z + (1.5 * camera_ball_radius_z) * Math.cos(pos);
@@ -382,7 +400,13 @@ function start(container){
             mousepos = e.clientX;
         });
     }
-    init();
+    var manager = new THREE.LoadingManager();
+    var loader = new THREE.JSONLoader( manager );
+    loader.load('Ornithopter.js', function( object, obj_mat ){
+        geoBall = object;
+        geoMat = new THREE.MeshLambertMaterial({ color: 0xd6933d });
+        init();
+    });
 }
 
 
