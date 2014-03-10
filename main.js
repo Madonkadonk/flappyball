@@ -11,10 +11,11 @@ function start(container){
     var renderGame = false;
     var spinVelocity = 0;
     box = {};
+    WIDTH = container.width(),
+    HEIGHT = container.height();
+    container.css('background', 'black');
     init = function(){
 
-        WIDTH = container.width(),
-        HEIGHT = container.height();
         VIEW_ANGLE = 45,
         ASPECT = WIDTH / HEIGHT,
         NEAR = 1,
@@ -206,7 +207,7 @@ function start(container){
 
             container[0].addEventListener('mousedown', ball_move, false);
         }
-        gameBegin = $('<div class="popup">Start Game <br />Press V to change vehicle</div>');
+        gameBegin = $('<div class="popup">Start Game</div>');
         gameBegin.css({
             position: 'absolute',
             background: 'green',
@@ -311,8 +312,7 @@ function start(container){
             renderGame = true;
             startGame();
         });
-        container.on('keypress', function(e){
-            if(e.charCode == 118){
+        function changeVehicles() {
                 $('.popup').remove();
                 if(default_ball == 'orni')
                     default_ball = 'enter';
@@ -351,7 +351,104 @@ function start(container){
                 scoreCount = 0;
                 counter.text(scoreCount);
                 startGame();
+        }
+        function toggleFullScreen(){
+                if(THREEx.FullScreen.available()){
+                    if(THREEx.FullScreen.activated()){
+                        THREEx.FullScreen.cancel();
+                    } else {
+                        THREEx.FullScreen.request(container[0]);
+                    }
+                }
+        }
+        $('body').on('keypress', function(e){
+            if(e.charCode == 118){
+                changeVehicles();
+            } else if (e.charCode == 102){
+                toggleFullScreen();
             }
+        });
+
+        var menuDiv = $('<div>');
+        
+        menuDiv.css({
+            position: 'absolute',
+            left: '0px',
+            bottom: '0px',
+            display: 'table',
+            width: '13%'
+        });
+
+        container.append(menuDiv);
+
+        var vehicleDiv = $('<div class="ent">')
+        vehicleDiv.append('<img class="vehicle_img" src="http://upload.wikimedia.org/wikipedia/commons/4/40/USS_Enterprise_NCC-1701-A.png"/>')
+        vehicleDiv.css({
+            width: '48%',
+            padding: '1%',
+            display: 'table-cell',
+            'vertical-align': 'middle',
+            background: 'white'
+        });
+
+        vehicleDiv.find('.vehicle_img').css({
+            width: '100%'
+        });
+
+        menuDiv.append(vehicleDiv);
+
+        vehicleDiv.on('click', function(){
+            $(this).toggleClass('ent');
+            $(this).toggleClass('davinci');
+            if($(this).hasClass('davinci')){
+                vehicleDiv.find('.vehicle_img').attr('src', 'http://www.novatempo.com/wp-content/uploads/2010/04/Nova-Da-Vinci-Air-Screw.jpg');
+            } else {
+                vehicleDiv.find('.vehicle_img').attr('src', "http://upload.wikimedia.org/wikipedia/commons/4/40/USS_Enterprise_NCC-1701-A.png");
+            }
+            changeVehicles();
+        });
+
+
+        var fullScreenDiv = $("<div class='full'>")
+        fullScreenDiv.css({
+            width: '48%',
+            padding: '1%',
+            display: 'table-cell',
+            'vertical-align': 'middle',
+            background: 'white'
+        });
+
+        fullScreenDiv.append('<img class="full_img" src="http://www.clker.com/cliparts/9/6/H/l/q/X/full-screen-no-border-hi.png"/>')
+
+        fullScreenDiv.find('.full_img').css('width', '100%');
+
+        menuDiv.append(fullScreenDiv);
+
+        fullScreenDiv.on('click', function(){
+            $(this).toggleClass('full');
+            $(this).toggleClass('window');
+            if($(this).hasClass('window')){
+                fullScreenDiv.find('.full_img').attr('src', 'http://www.clker.com/cliparts/b/W/p/6/t/1/exit-full-screen-hi.png');
+            } else {
+                fullScreenDiv.find('.full_img').attr('src', 'http://www.clker.com/cliparts/9/6/H/l/q/X/full-screen-no-border-hi.png');
+            }
+            toggleFullScreen();
+        });
+
+        $(window).on('resize', function(){
+            WIDTH = container.width(),
+            HEIGHT = container.height();
+            renderer.setSize( WIDTH, HEIGHT);
+            camera.aspect   = WIDTH / HEIGHT;
+            camera.updateProjectionMatrix();
+            menuDiv.css({
+                bottom: '1px'
+            });
+            setTimeout(function(){
+                menuDiv.css({
+                    bottom: '0px'
+                });
+            }, 100);
         });
         
         renderer.setClearColor(0xffffff, 1);
@@ -492,16 +589,54 @@ function start(container){
     }
     var manager = new THREE.LoadingManager();
     var loader = new THREE.JSONLoader( manager );
-    loader.load('Ornithopter.js', function( object, obj_mat ){
+    loader.callbackProgress = function(progress, result){
+        console.log(progress);
+    }
+    loadingBox = $('<div>Loading</div>')
+    loadingBarOuter = $("<div></div>");
+    loadingBar = $('<div></div>');
+
+    loadingBox.css({
+        position: 'absolute',
+        color: 'white',
+        width: '300px',
+        height: '200px',
+        left: WIDTH/2 - 150,
+        top: HEIGHT/2 - 100,
+        'font-size': '90px'
+    });
+    loadingBox.append(loadingBarOuter);
+
+    loadingBarOuter.css({
+        width: '300px',
+        height: '50px',
+        border: '1px solid white'
+    });
+
+    loadingBarOuter.append(loadingBar);
+    loadingBar.css({
+        width: 0,
+        height: '50px',
+        background: 'white'
+    });
+    container.append(loadingBox);
+    loader.loadAjaxJSON(loader, 'Ornithopter.js', function( object, obj_mat ){
         geoBall.orni = object;
         geoMat.orni = new THREE.MeshLambertMaterial({ color: 0xd6933d });
-        loader.load('USSEnterprise.js', function(object){
+        loader.loadAjaxJSON(loader, 'USSEnterprise.js', function(object){
             console.log(object, obj_mat);
             geoBall.enter = object;
             geoMat.enter = obj_mat[0];
             //geoMat = new THREE.MeshLambertMaterial({ color: 0xd6933d });
             init();
+            loadingBox.remove();
+        }, './', function(progress){
+            var prog = .95 + (progress.loaded/364462)/20;
+            loadingBar.css('width', 300 * prog);
         });
+    }, './', function(progress){
+        var prog = (19*(progress.loaded/9644827))/20;
+        loadingBar.css('width', 300 * prog);
     });
 }
 
